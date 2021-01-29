@@ -5,7 +5,7 @@ import (
 	"errors"
 	"runtime"
 	"sync"
-  "fmt"
+  	"fmt"
 )
 
 // Coroutine group controller
@@ -30,6 +30,7 @@ type CoGroup struct {
 // Intitialize a new run group
 // - n: max goroutines
 // - m: jobs buffer size
+// - sink: if pass the context to the job
 func RunGroup(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
 	g := &CoGroup{
 		Context: ctx,
@@ -42,7 +43,8 @@ func RunGroup(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
 	return g
 }
 
-// Add may block if jobs buffer is full
+// NOTE: Add may block if jobs buffer is full
+// Add a task into the group
 func (g *CoGroup) Add(f func(context.Context) error) error {
 	g.Lock()
 	defer g.Unlock()
@@ -55,6 +57,7 @@ func (g *CoGroup) Add(f func(context.Context) error) error {
 	return GROUP_CLOSED_ERROR
 }
 
+// Start the coroutine group
 func (g *CoGroup) start(n int) {
 	for i := 0; i < n; i++ {
 		g.wg.Add(1)
@@ -62,6 +65,7 @@ func (g *CoGroup) start(n int) {
 	}
 }
 
+// Start a single coroutine
 func (g *CoGroup) process() {
 	defer g.wg.Done()
 	for {
@@ -77,6 +81,7 @@ func (g *CoGroup) process() {
 	}
 }
 
+// Execute a single task
 func (g *CoGroup) run(f func(context.Context) error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -97,6 +102,7 @@ func (g *CoGroup) run(f func(context.Context) error) {
 	return
 }
 
+// Wait till the tasks are all done or canceled by the context.
 func (g *CoGroup) Wait() {
 	g.Lock()
 	g.open = false
