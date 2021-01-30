@@ -13,20 +13,23 @@ func Test_CoGroup(t *testing.T) {
 		return nil
 	}
 
-	g := RunGroup(context.Background(), 2, 10, false)
-	for i := 0; i < 10; i++ {
+	g := Start(context.Background(), 2, 10, false)
+	for i := 0; i < 1; i++ {
 		g.Add(f)
 	}
-	g.Wait()
+	a := g.Wait()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	g = RunGroup(ctx, 2, 100, false)
+	g = Start(ctx, 2, 10, false)
 	go func() {
-		<-time.After(10 * time.Second)
+		<-time.After(1 * time.Second)
 		cancel()
 	}()
-	for i := 0; i < 100; i++ {
-		g.Add(f)
+	for i := 0; i < 10; i++ {
+		println(g.Insert(f))
 	}
-	g.Wait()
+	b := g.Wait()
+	if a != 0 || b != 8 {
+		t.Error("Unexpect queue length", a, b)
+	}
 }

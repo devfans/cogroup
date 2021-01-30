@@ -1,60 +1,64 @@
+// Package cogroup provides a elegant goroutine group with context controls. It's designed to meet the following requirements.
+//
+// - Tasks can be executed with order
+// - Group `wait` command will close the write acces to the task queue
+// - Upstream context can cancel the task queue
+// - When the context is canceled, the tasks in queue will be no longer consumed
+// - Panic recover for a single task execution
+// - Only spawn specified number of goroutines to consume the task
+// - `Wait` will return block until tasks are finished or canceled, and return with the queue length
+//
 package cogroup
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"runtime"
 	"sync"
-  	"fmt"
 )
 
-// Coroutine group controller
-// - panic recover
-// - support upstream cancel func
-// - max procs control
-// NOTE：Add() will block if the job buffer is full
-
-var GROUP_CLOSED_ERROR = errors.New("Group access was already closed")
-
+// Coroutine group struct holds the group state: the task queue, context and signals.
 type CoGroup struct {
 	context.Context
 	wg   sync.WaitGroup
 	ch   chan func(context.Context) error // Task chan
 	sink bool                             // Use group context or not
-	open bool                             // Open signal
-	jobs int
-	done chan bool // Close chan for draining
-	sync.Mutex
 }
 
-// Intitialize a new run group
-// - n: max goroutines
-// - m: jobs buffer size
-// - sink: if pass the context to the job
-func RunGroup(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
+// Start will initialize a cogroup and start the group goroutines.
+func Start(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
 	g := &CoGroup{
 		Context: ctx,
 		ch:      make(chan func(context.Context) error, m),
-		done:    make(chan bool, m),
 		sink:    sink,
-		open:    true,
 	}
 	g.start(int(n))
 	return g
 }
 
-// NOTE: Add may block if jobs buffer is full
-// Add a task into the group
-func (g *CoGroup) Add(f func(context.Context) error) error {
-	g.Lock()
-	defer g.Unlock()
-	open := g.open
-	if open {
-		g.ch <- f
-		g.jobs++
-		return nil
+// Add a task into the task queue without blocking.
+func (g *CoGroup) Add(f func(context.Context) error) {
+	select {
+	case g.ch <- f:
+	default:
+		go g.Insert(f)
 	}
-	return GROUP_CLOSED_ERROR
+}
+
+// Insert a task into the task queue with blocking if the task queue buffer is full.
+// If the group context was canceled already, it will abort with a false return.
+func (g *CoGroup) Insert(f func(context.Context) error) (success bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			success = false
+		}
+	}()
+	select {
+	case g.ch <- f:
+		success = true
+	case <-g.Done():
+	}
+	return
 }
 
 // Start the coroutine group
@@ -70,13 +74,18 @@ func (g *CoGroup) process() {
 	defer g.wg.Done()
 	for {
 		select {
-		case f, ok := <-g.ch:
-			if !ok {
-				return
-			}
-			g.run(f)
 		case <-g.Done():
 			return
+		default:
+			select {
+			case f, ok := <-g.ch:
+				if !ok {
+					return
+				}
+				g.run(f)
+			case <-g.Done():
+				return
+			}
 		}
 	}
 }
@@ -96,28 +105,18 @@ func (g *CoGroup) run(f func(context.Context) error) {
 	} else {
 		f(context.Background())
 	}
-	go func() {
-		g.done <- true
-	}()
 	return
 }
 
-// Wait till the tasks are all done or canceled by the context.
-func (g *CoGroup) Wait() {
-	g.Lock()
-	g.open = false
-	n := g.jobs
-	g.Unlock()
-	go func() {
-		defer close(g.ch)
-		for i := 0; i < n; i++ {
-			select {
-			case <-g.done:
-			case <-g.Done():
-				return
-			}
-		}
-	}()
-
+// Wait till the tasks in queue are all finished, or the group was canceled by the context.
+func (g *CoGroup) Wait() int {
+	close(g.ch)
 	g.wg.Wait()
+	return len(g.ch)
+}
+
+// Reset the cogroup, it will call the group `Wait` first before do a internal reset.
+func (g *CoGroup) Reset() {
+	g.Wait()
+	g.ch = make(chan func(context.Context) error, cap(g.ch))
 }
