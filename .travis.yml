@@ -1,5 +1,5 @@
 language: go
-script: go get -d github.com/devfans/cogroup/test && go test github.com/devfans/cogroup/test
+script: go get -d github.com/devfans/cogroup && go test github.com/devfans/cogroup
 branches:
   only:
   - master
