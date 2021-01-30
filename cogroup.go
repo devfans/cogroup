@@ -19,8 +19,8 @@ import (
 
 // Coroutine group struct holds the group state: the task queue, context and signals.
 type CoGroup struct {
-	context.Context
-	wg   sync.WaitGroup
+	ctx context.Context                   // Group context
+	wg   sync.WaitGroup                   // Group goroutine wait group
 	ch   chan func(context.Context) error // Task chan
 	sink bool                             // Use group context or not
 }
@@ -28,7 +28,7 @@ type CoGroup struct {
 // Start will initialize a cogroup and start the group goroutines.
 func Start(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
 	g := &CoGroup{
-		Context: ctx,
+		ctx: ctx,
 		ch:      make(chan func(context.Context) error, m),
 		sink:    sink,
 	}
@@ -56,7 +56,7 @@ func (g *CoGroup) Insert(f func(context.Context) error) (success bool) {
 	select {
 	case g.ch <- f:
 		success = true
-	case <-g.Done():
+	case <-g.ctx.Done():
 	}
 	return
 }
@@ -74,7 +74,7 @@ func (g *CoGroup) process() {
 	defer g.wg.Done()
 	for {
 		select {
-		case <-g.Done():
+		case <-g.ctx.Done():
 			return
 		default:
 			select {
@@ -83,7 +83,7 @@ func (g *CoGroup) process() {
 					return
 				}
 				g.run(f)
-			case <-g.Done():
+			case <-g.ctx.Done():
 				return
 			}
 		}
@@ -101,7 +101,7 @@ func (g *CoGroup) run(f func(context.Context) error) {
 	}()
 
 	if g.sink {
-		f(g.Context)
+		f(g.ctx)
 	} else {
 		f(context.Background())
 	}
