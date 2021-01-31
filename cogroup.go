@@ -32,6 +32,9 @@ type CoGroup struct {
 }
 
 // Start will initialize a cogroup and start the group goroutines.
+// Parameter `n` specifies the number the goroutine to start as workers to consume the task queue.
+// Parameter `m` specifies the size of the task queue buffer, if the buffer is full, the `Insert` method will block till there's more room or a cancel signal was received.
+// Parameter `sink` specifies whether to pass the group context to the task.
 func Start(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
 	g := &CoGroup{
 		ctx: ctx,
