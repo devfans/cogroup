@@ -26,7 +26,7 @@ func Test_CoGroup(t *testing.T) {
 		cancel()
 	}()
 	for i := 0; i < 20; i++ {
-		println(g.Add(f))
+		g.Add(f)
 	}
 	b := g.Wait()
 	if a != 0 || b == 0 {
