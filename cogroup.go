@@ -114,6 +114,11 @@ func (g *CoGroup) run(f func(context.Context) error) {
 	return
 }
 
+// Size return the length the task queue
+func (g *CoGroup) Size() int {
+	return len(g.ch)
+}
+
 // Wait till the tasks in queue are all finished, or the group was canceled by the context.
 func (g *CoGroup) Wait() int {
 	close(g.ch)
