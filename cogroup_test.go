@@ -25,11 +25,11 @@ func Test_CoGroup(t *testing.T) {
 		<-time.After(1 * time.Second)
 		cancel()
 	}()
-	for i := 0; i < 10; i++ {
-		println(g.Insert(f))
+	for i := 0; i < 20; i++ {
+		println(g.Add(f))
 	}
 	b := g.Wait()
-	if a != 0 || b != 8 {
+	if a != 0 || b == 0 {
 		t.Error("Unexpect queue length", a, b)
 	}
 }
