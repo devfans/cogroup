@@ -1,14 +1,14 @@
 package cogroup_test
 
 import (
-  "context"
+	"context"
 	"time"
 
 	"github.com/devfans/cogroup"
 )
 
 
-func Example_Start() {
+func ExampleStart() {
   f := func(context.Context) error {
     <-time.After(time.Second)
     return nil
@@ -21,7 +21,7 @@ func Example_Start() {
   g.Wait()
 }
 
-func Example_StartWillCancelContext() {
+func ExampleStart_startWithCancelContext() {
   f := func(context.Context) error {
     <-time.After(time.Second)
     return nil
