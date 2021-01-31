@@ -114,7 +114,7 @@ func (g *CoGroup) run(f func(context.Context) error) {
 	return
 }
 
-// Size return the length the task queue
+// Size return the current length the task queue
 func (g *CoGroup) Size() int {
 	return len(g.ch)
 }
