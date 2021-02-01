@@ -53,8 +53,10 @@ import  (
 )
 
 func main() {
-  f := func(context.Context) error {
+  f := func(ctx context.Context) error {
     <-time.After(time.Second)
+    workerId := cogroup.GetWorkerId(ctx)
+    println(workerId, " did one task")
     return nil
   }
 
