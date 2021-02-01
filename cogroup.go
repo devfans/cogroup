@@ -29,7 +29,11 @@ type CoGroup struct {
 	wg   sync.WaitGroup                   // Group goroutine wait group
 	ch   chan func(context.Context) error // Task chan
 	sink bool                             // Use group context or not
+	n    int                              // Number of workers to spawn
 }
+
+// Worker meta context key
+type workerKey struct {}
 
 // Start will initialize a cogroup and start the group goroutines.
 //
@@ -40,11 +44,12 @@ type CoGroup struct {
 // Parameter `sink` specifies whether to pass the group context to the task.
 func Start(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
 	g := &CoGroup{
-		ctx: ctx,
+		ctx:     ctx,
 		ch:      make(chan func(context.Context) error, m),
 		sink:    sink,
+		n:       int(n),
 	}
-	g.start(int(n))
+	g.start(g.n)
 	return g
 }
 
@@ -77,12 +82,12 @@ func (g *CoGroup) Insert(f func(context.Context) error) (success bool) {
 func (g *CoGroup) start(n int) {
 	for i := 0; i < n; i++ {
 		g.wg.Add(1)
-		go g.process()
+		go g.process(i)
 	}
 }
 
 // Start a single coroutine
-func (g *CoGroup) process() {
+func (g *CoGroup) process(i int) {
 	defer g.wg.Done()
 	for {
 		select {
@@ -94,7 +99,7 @@ func (g *CoGroup) process() {
 				if !ok {
 					return
 				}
-				g.run(f)
+				g.run(i, f)
 			case <-g.ctx.Done():
 				return
 			}
@@ -103,7 +108,7 @@ func (g *CoGroup) process() {
 }
 
 // Execute a single task
-func (g *CoGroup) run(f func(context.Context) error) {
+func (g *CoGroup) run(i int, f func(context.Context) error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err := make([]byte, 200)
@@ -111,11 +116,11 @@ func (g *CoGroup) run(f func(context.Context) error) {
 			fmt.Printf("CoGroup panic captured %v %s\n", r, err)
 		}
 	}()
-
+	
 	if g.sink {
-		f(g.ctx)
+		f(context.WithValue(g.ctx, workerKey{}, i))
 	} else {
-		f(context.Background())
+		f(context.WithValue(context.Background(), workerKey{}, i))
 	}
 	return
 }
@@ -137,3 +142,15 @@ func (g *CoGroup) Reset() {
 	g.Wait()
 	g.ch = make(chan func(context.Context) error, cap(g.ch))
 }
+
+// Get the number of total group workers
+func (g *CoGroup) GetWorkers() int {
+	return g.n
+}
+
+// Get worker id from the context
+func GetWorkerId(ctx context.Context) int {
+	n, _ := ctx.Value(workerKey{}).(int)
+	return n
+}
+
