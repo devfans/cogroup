@@ -1,6 +1,6 @@
 // Package cogroup provides a elegant goroutine group with context controls. It's designed to meet the following requirements.
 //
-// - Tasks can be executed with order
+// - Tasks can be executed without order
 //
 // - Group `wait` command will close the write acces to the task queue
 //
@@ -12,7 +12,7 @@
 //
 // - Only spawn specified number of goroutines to consume the task
 //
-// - `Wait` will return block until tasks are finished or canceled, and return with the queue length
+// - `Wait` will block until tasks are finished or canceled, and return with the queue length
 //
 package cogroup
 
