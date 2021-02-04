@@ -111,7 +111,7 @@ func (g *CoGroup) process(i int) {
 func (g *CoGroup) run(i int, f func(context.Context) error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err := make([]byte, 200)
+			err := make([]byte, 2000)
 			err = err[:runtime.Stack(err, false)]
 			fmt.Printf("CoGroup panic captured %v %s\n", r, err)
 		}
