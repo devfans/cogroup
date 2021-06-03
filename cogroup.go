@@ -44,6 +44,9 @@ type workerKey struct{}
 //
 // Parameter `sink` specifies whether to pass the group context to the task.
 func Start(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
+	if n < 1 {
+		panic("At least one goroutine should spawned in cogroup!")
+	}
 	g := &CoGroup{
 		ctx:  ctx,
 		ch:   make(chan func(context.Context) error, m),
