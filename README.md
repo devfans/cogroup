@@ -55,8 +55,8 @@ import  (
 func main() {
   f := func(ctx context.Context) error {
     <-time.After(time.Second)
-    workerId := cogroup.GetWorkerId(ctx)
-    println(workerId, " did one task")
+    workerID := cogroup.GetWorkerID(ctx)
+    println(workerID, " did one task")
     return nil
   }
 
