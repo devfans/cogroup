@@ -19,13 +19,14 @@ package cogroup
 import (
 	"context"
 	"fmt"
-	"runtime"
+	"os"
+	"runtime/debug"
 	"sync"
 )
 
-// Coroutine group struct holds the group state: the task queue, context and signals.
+// CoGroup Coroutine group struct holds the group state: the task queue, context and signals.
 type CoGroup struct {
-	ctx context.Context                   // Group context
+	ctx  context.Context                  // Group context
 	wg   sync.WaitGroup                   // Group goroutine wait group
 	ch   chan func(context.Context) error // Task chan
 	sink bool                             // Use group context or not
@@ -33,7 +34,7 @@ type CoGroup struct {
 }
 
 // Worker meta context key
-type workerKey struct {}
+type workerKey struct{}
 
 // Start will initialize a cogroup and start the group goroutines.
 //
@@ -44,10 +45,10 @@ type workerKey struct {}
 // Parameter `sink` specifies whether to pass the group context to the task.
 func Start(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
 	g := &CoGroup{
-		ctx:     ctx,
-		ch:      make(chan func(context.Context) error, m),
-		sink:    sink,
-		n:       int(n),
+		ctx:  ctx,
+		ch:   make(chan func(context.Context) error, m),
+		sink: sink,
+		n:    int(n),
 	}
 	g.start(g.n)
 	return g
@@ -111,12 +112,10 @@ func (g *CoGroup) process(i int) {
 func (g *CoGroup) run(i int, f func(context.Context) error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err := make([]byte, 2000)
-			err = err[:runtime.Stack(err, false)]
-			fmt.Printf("CoGroup panic captured %v %s\n", r, err)
+			fmt.Fprintf(os.Stderr, "CoGroup panic captured: %s", debug.Stack())
 		}
 	}()
-	
+
 	if g.sink {
 		f(context.WithValue(g.ctx, workerKey{}, i))
 	} else {
@@ -143,14 +142,13 @@ func (g *CoGroup) Reset() {
 	g.ch = make(chan func(context.Context) error, cap(g.ch))
 }
 
-// Get the number of total group workers
+// GetWorkers Get the number of total group workers
 func (g *CoGroup) GetWorkers() int {
 	return g.n
 }
 
-// Get worker id from the context
-func GetWorkerId(ctx context.Context) int {
+// GetWorkerID Get worker id from the context
+func GetWorkerID(ctx context.Context) int {
 	n, _ := ctx.Value(workerKey{}).(int)
 	return n
 }
-

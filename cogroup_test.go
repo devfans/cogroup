@@ -9,7 +9,7 @@ import (
 func Test_CoGroup(t *testing.T) {
 	f := func(ctx context.Context) error {
 		<-time.After(time.Second)
-		t.Log(GetWorkerId(ctx),"xxxxxxxxxxxxxxxxxx")
+		t.Log(GetWorkerID(ctx), "xxxxxxxxxxxxxxxxxx")
 		return nil
 	}
 
