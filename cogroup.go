@@ -24,17 +24,38 @@ import (
 	"sync"
 )
 
+// CoGroup Worker factory
+//
+// `i` indicates the worker id
+//
+// `f` is job to consume
+type Worker func(i int, f func(context.Context) error)
+
 // CoGroup Coroutine group struct holds the group state: the task queue, context and signals.
 type CoGroup struct {
-	ctx  context.Context                  // Group context
-	wg   sync.WaitGroup                   // Group goroutine wait group
-	ch   chan func(context.Context) error // Task chan
-	sink bool                             // Use group context or not
-	n    int                              // Number of workers to spawn
+	worker Worker
+	ctx    context.Context                  // Group context
+	wg     sync.WaitGroup                   // Group goroutine wait group
+	ch     chan func(context.Context) error // Task chan
+	sink   bool                             // Use group context or not
+	n      int                              // Number of workers to spawn
 }
 
 // Worker meta context key
 type workerKey struct{}
+
+// New will create a cogroup instance without starting the group
+func New(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
+	if n < 1 {
+		panic("At least one goroutine should spawned in cogroup!")
+	}
+	return &CoGroup{
+		ctx:  ctx,
+		ch:   make(chan func(context.Context) error, m),
+		n:    int(n),
+		sink: sink,
+	}
+}
 
 // Start will initialize a cogroup and start the group goroutines.
 //
@@ -44,17 +65,22 @@ type workerKey struct{}
 //
 // Parameter `sink` specifies whether to pass the group context to the task.
 func Start(ctx context.Context, n uint, m uint, sink bool) *CoGroup {
-	if n < 1 {
-		panic("At least one goroutine should spawned in cogroup!")
-	}
-	g := &CoGroup{
-		ctx:  ctx,
-		ch:   make(chan func(context.Context) error, m),
-		sink: sink,
-		n:    int(n),
-	}
+	g := New(ctx, n, m, sink)
+	g.worker = g.run
 	g.start(g.n)
 	return g
+}
+
+// StartWithWorker will register customized worker and start the group goroutines
+//
+// If worker is `nil`, the default plain worker will be used.
+func (g *CoGroup) StartWithWorker(worker Worker) {
+	if worker == nil {
+		g.worker = g.run
+	} else {
+		g.worker = worker
+	}
+	g.start(g.n)
 }
 
 // Add a task into the task queue without blocking.
@@ -103,7 +129,7 @@ func (g *CoGroup) process(i int) {
 				if !ok {
 					return
 				}
-				g.run(i, f)
+				g.worker(i, f)
 			case <-g.ctx.Done():
 				return
 			}
