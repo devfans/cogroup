@@ -3,7 +3,7 @@ Golang coroutine group
 
 [![Build Status](https://travis-ci.org/devfans/cogroup.svg?branch=master)](https://travis-ci.org/devfans/cogroup)
 [![Go Report Card](https://goreportcard.com/badge/github.com/devfans/cogroup)](https://goreportcard.com/report/github.com/devfans/cogroup)
-[![GoDoc](https://godoc.org/github.com/devfans/cogroup?status.svg)](https://godoc.org/github.com/devfans/cogroup) [![Join the chat at https://gitter.im/devfans/envconf](https://badges.gitter.im/devfans/cogroup.svg)](https://gitter.im/devfans/cogroup?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![GoDoc](https://godoc.org/github.com/devfans/cogroup?status.svg)](https://godoc.org/github.com/devfans/cogroup) [![Join the chat at https://gitter.im/devfans/cogroup](https://badges.gitter.im/devfans/cogroup.svg)](https://gitter.im/devfans/cogroup?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Package cogroup provides a elegant goroutine group with context controls. It's designed to meet the following requirements.
 
@@ -72,6 +72,36 @@ func main() {
   }
   println("Tasks left:", g.Wait())
 }
+
+```
+
+Start a group with custom worker
+
+```
+import  (
+  "context"
+  "time"
+
+  "github.com/devfans/cogroup"
+)
+
+func main() {
+  f := func(context.Context) error {
+    <-time.After(time.Second)
+    return nil
+  }
+
+  g := cogroup.New(context.Background(), 2, 10, false)
+  g.StartWithWorker(func(ctx context.Context, i int, f func(context.Context) error {
+    println("Worker is running with id", i)
+    f(ctx)
+  }))
+  for i := 0; i < 10; i++ {
+    g.Add(f)
+  }
+  g.Wait()
+}
+
 
 ```
 

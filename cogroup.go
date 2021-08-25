@@ -26,10 +26,12 @@ import (
 
 // CoGroup Worker factory
 //
+// `ctx` is provided from the cogroup
+//
 // `i` indicates the worker id
 //
 // `f` is job to consume
-type Worker func(i int, f func(context.Context) error)
+type Worker func(ctx context.Context, i int, f func(context.Context) error)
 
 // CoGroup Coroutine group struct holds the group state: the task queue, context and signals.
 type CoGroup struct {
@@ -129,7 +131,7 @@ func (g *CoGroup) process(i int) {
 				if !ok {
 					return
 				}
-				g.worker(i, f)
+				g.worker(g.ctx, i, f)
 			case <-g.ctx.Done():
 				return
 			}
@@ -138,7 +140,7 @@ func (g *CoGroup) process(i int) {
 }
 
 // Execute a single task
-func (g *CoGroup) run(i int, f func(context.Context) error) {
+func (g *CoGroup) run(_ context.Context, i int, f func(context.Context) error) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Fprintf(os.Stderr, "CoGroup panic captured: %s", debug.Stack())
