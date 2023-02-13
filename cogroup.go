@@ -142,8 +142,8 @@ func (g *CoGroup) process(i int) {
 // Execute a single task
 func (g *CoGroup) run(_ context.Context, i int, f func(context.Context) error) {
 	defer func() {
-		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "CoGroup panic captured: %s", debug.Stack())
+		if err := recover(); err != nil {
+			fmt.Fprintf(os.Stderr, "CoGroup panic captured: %v - %s", err, debug.Stack())
 		}
 	}()
 
