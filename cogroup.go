@@ -24,7 +24,7 @@ import (
 	"sync"
 )
 
-// CoGroup Worker factory
+// Worker CoGroup Worker factory
 //
 // `ctx` is provided from the cogroup
 //
@@ -85,6 +85,20 @@ func (g *CoGroup) StartWithWorker(worker Worker) {
 	g.start(g.n)
 }
 
+// TryInsert without blocking will return false when the task queue is full or closed, or the context was canceled already.
+func (g *CoGroup) TryInsert(f func(context.Context) error) (success bool) {
+	defer func() {
+		recover()
+	}()
+	select {
+	case g.ch <- f:
+		success = true
+	case <-g.ctx.Done():
+	default:
+	}
+	return
+}
+
 // Add a task into the task queue without blocking.
 func (g *CoGroup) Add(f func(context.Context) error) {
 	select {
@@ -98,9 +112,7 @@ func (g *CoGroup) Add(f func(context.Context) error) {
 // If the group context was canceled already, it will abort with a false return.
 func (g *CoGroup) Insert(f func(context.Context) error) (success bool) {
 	defer func() {
-		if r := recover(); r != nil {
-			success = false
-		}
+		recover()
 	}()
 	select {
 	case g.ch <- f:

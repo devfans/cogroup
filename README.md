@@ -5,14 +5,15 @@ Golang coroutine group
 [![Go Report Card](https://goreportcard.com/badge/github.com/devfans/cogroup)](https://goreportcard.com/report/github.com/devfans/cogroup)
 [![GoDoc](https://godoc.org/github.com/devfans/cogroup?status.svg)](https://godoc.org/github.com/devfans/cogroup) [![Join the chat at https://gitter.im/devfans/cogroup](https://badges.gitter.im/devfans/cogroup.svg)](https://gitter.im/devfans/cogroup?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Package cogroup provides a elegant goroutine group with context controls. It's designed to meet the following requirements.
+Package cogroup provides an elegant goroutine group with context controls. It's designed to meet the following requirements.
 
 - Tasks can be executed without order
-- Group `wait` command will close the write acces to the task queue
-- Upstream context can cancel the task queue
+- Group `wait` command will close the write access to the task queue
+- Upstream context can cancel/stop the execution of the tasks
 - When the context is canceled, the tasks in queue will be no longer consumed
-- Only spawn specified number of goroutines to consume the task
+- Only spawn specified number of goroutines to consume the task queue
 - Panic recover for a single task execution
+- Custom worker with upstream context and worker id provided.
 - `Wait` will block until tasks are finished or canceled, and return with the queue length
 
 ### Usage
